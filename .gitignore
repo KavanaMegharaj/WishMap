@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Crash logs
+*.log
+hs_err_pid*
