@@ -12,10 +12,6 @@
      PUT    /api/wishlist/{id}/visited
      DELETE /api/wishlist/{id}
      POST   /api/wishlist/nearby body: { currentLat, currentLon, radiusMeters } -> [{ placeId, name, notes, distanceMeters }]
-
-   Images: fetched from Openverse (api.openverse.org) — a free, no-API-key search
-   over openly-licensed (CC / public domain) images, safe to reuse. If a fetch
-   fails or returns nothing, the existing gradient design is kept as a fallback.
    ========================================================= */
 
 const API_BASE = ''; // e.g. 'https://your-backend.onrender.com' once split from frontend
@@ -189,11 +185,7 @@ function render(){
   gridEl.innerHTML = filtered.map(p => `
     <article class="place" data-id="${p.id}">
       <div class="cover" style="background-image:url('${imageForCategory(p.category)}')">
-        <span class="badge badge-${(p.category || "other")
-        .toLowerCase()
-        .replace(/[^a-z]/g,"")}">
-        ${escapeHtml(p.category || 'Other')}
-        </span>
+        <span class="badge">${escapeHtml(p.category || 'Other')}</span>
         <span class="status ${p.visited ? 'visited' : ''}">
           <i></i>${p.visited ? 'Visited' : 'On the list'}
         </span>
@@ -347,17 +339,25 @@ function checkNearby(){
     const lat = pos.coords.latitude, lng = pos.coords.longitude;
     userLat = lat; userLng = lng;
 
+    // FIX (mobile bug): fetching + rendering results now happens in its own try/catch,
+    // fully separate from the notification attempt below. Previously a single catch
+    // wrapped both, so on mobile browsers where `new Notification()` throws (many
+    // Android Chrome builds don't support the constructor), the catch fired AFTER
+    // results had already rendered and overwrote the title with a misleading
+    // "could not reach the server" message even though the backend worked fine.
     try {
       const res = await fetch(`${API_BASE}/api/wishlist/nearby`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ currentLat: lat, currentLon: lng, radiusMeters: NEARBY_RADIUS_METERS })
       });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const results = await res.json();
-      renderNearbyResults(results);
+      renderNearbyResults(results); // rendering the cards must succeed before we ever try the notification
     } catch (e){
+      console.error('Nearby fetch/render error:', e);
       nearbyTitle.textContent = 'Something went wrong';
-      nearbySub.textContent = 'Could not reach the server — check your connection.';
+      nearbySub.textContent = e.message || 'Could not reach the server — check your connection.';
     }
   }, () => {
     nearbyTitle.textContent = 'Location permission needed';
@@ -388,12 +388,19 @@ function renderNearbyResults(results){
     </button>
   `).join('');
 
-  // Also surface the closest one as a real OS-level notification, if permitted
+  // Also surface the closest one as a real OS-level notification, if permitted.
+  // FIX: this runs in its own try/catch — on many mobile browsers `new Notification()`
+  // throws (Illegal constructor) even when permission is "granted". That must never
+  // be allowed to overwrite the results we already rendered above.
   const closest = results[0];
-  if (Notification && Notification.permission === 'granted'){
-    new Notification('WishMap', {
-      body: `${closest.name} is ${formatDistance(closest.distanceMeters)} — you might visit and enjoy!`
-    });
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+      new Notification('WishMap', {
+        body: `${closest.name} is ${formatDistance(closest.distanceMeters)} — you might visit and enjoy!`
+      });
+    }
+  } catch (notifErr){
+    console.log('Notification not supported on this device:', notifErr);
   }
 }
 
@@ -403,7 +410,10 @@ nearbyList.addEventListener('click', (event) => {
   const place = places.find(p => String(p.id) === item.dataset.nearbyPlaceId);
   if (!place) return;
   const destination = `${place.latitude},${place.longitude}`;
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=walking`, '_blank');
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=walking`;
+  // FIX: window.open() can be blocked or behave inconsistently on some mobile browsers.
+  // window.location.href is more reliable for navigating away on mobile.
+  window.location.href = url;
 });
 if (typeof Notification !== 'undefined' && Notification.permission === 'default'){
   Notification.requestPermission();
