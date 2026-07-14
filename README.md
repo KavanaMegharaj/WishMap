@@ -6,6 +6,21 @@ A full-stack app for saving places you want to visit and getting notified the mo
 
 **Repo:** https://github.com/KavanaMegharaj/WishMap
 
+<h2>📸 Screenshots</h2>
+
+<p align="center">
+  <img src="screenshots/home_page.png" width="45%">
+  <img src="screenshots/login_page.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="screenshots/Live_map.png" width="45%">
+  <img src="screenshots/nearby_places.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="screenshots/wishlisted_places.png" width="70%">
+</p>
 ## The problem it solves
 You see a cafe on a reel, think "I want to go there," and forget completely — until you randomly walk past it weeks later with no memory of why it mattered. WishMap fixes that: save it once, get notified when you're close enough to actually go.
 
