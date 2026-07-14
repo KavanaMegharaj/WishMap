@@ -3,6 +3,7 @@
 A full-stack app for saving places you want to visit and getting notified the moment you're actually near one.
 
 **Live demo:** https://wishmap.onrender.com/
+
 **Repo:** https://github.com/KavanaMegharaj/WishMap
 
 ## The problem it solves
